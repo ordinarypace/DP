@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DP</title>
+</head>
+<body>
+<div id="app">
+
+</div>
+<script>
+    // 상속 위임
+    const Service = class{
+        constructor(baseUrl){
+            this._baseUrl = baseUrl;
+        }
+        // inject type
+        async getData(type){
+            // TEMPLATE METHOD
+            const response = await fetch(this.baseUrl + '/' + type, {method : 'GET', body : ''});
+
+            // 내부 상태를 공유하는 목적이기 때문에 인자를 넘기지 않는다.
+            this._json = await response.json();
+
+            switch(type){
+                // 실행시점 위임부분
+                case 'number' : return this._checkMember();
+                case 'notice' : return this._checkNotice();
+                default : throw 'invalid type';
+            }
+            // child 와 내부 계약으로 인해 추상화된 method이기 때문에 override 하지 않으면 throw를 던진다.
+            _checkMember(){throw 'must override';}
+            _checkNotice(){throw 'must override';}
+        };
+    }
+
+    // 실행시점에 위임된 알고리즘
+    const Service1 = class extends Service{
+        _checkNumber(){...}
+        _checkNumber(){...}
+    }
+</script>
+</body>
+</html>

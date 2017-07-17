@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DP</title>
+</head>
+<body>
+<div id="app">
+
+</div>
+<script>
+    // 소유 위임
+    const Service = class{
+        constructor(baseUrl, checker){
+            this._baseUrl = baseUrl;
+            // 값으로 비교가 아닌 형으로 비교하는것이 객체지향의 출발점.
+            if(!(checker instanceof Checker)) throw 'invlid checker';
+            // 실행시점 위임 객체
+            this._checker = checker;
+        }
+        // inject type
+        async getData(type){
+            // TEMPLATE METHOD
+            const response = await fetch(this.baseUrl + '/' + type, {method : 'GET', body : ''});
+
+            // 내부 상태를 공유하는 목적이기 때문에 인자를 넘기지 않는다.
+            this._json = await response.json();
+
+            // Checker 객채와 외부 계약을 통해 실행시점을 위임한다.
+            switch(type){
+                case 'number' : return this._checker.member(json);
+                case 'notice' : return this._checker.notice(json);
+                default : throw 'invalid type';
+            }
+        };
+    }
+    // STRATEGE OBJECT (전략객체)
+    const Checker = class{
+        member(json){}
+        notice(json){}
+    }
+</script>
+</body>
+</html>
