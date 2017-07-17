@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DP</title>
+</head>
+<body>
+<div id="app">
+
+</div>
+<script>
+    // 상속 위임
+    const Service = class{
+        constructor(baseUrl){
+            this._baseUrl = baseUrl;
+            // 라우팅 테이블
+            this._checkers = new Map();
+        }
+
+        addChecker(type, checker){
+            // 형 체크
+            if(!(checker instanceof Checker)){
+                throw 'invalid checker';
+            }
+            this._checkers.set(type, checker)
+        }
+        // inject type
+        async getData(type){
+            if(!this.checkers.has(type)){
+                throw 'no checker';
+            }
+            const response = await fetch(this.baseUrl + '/' + type, {method : 'GET', body : ''});
+            const json = await response.json();
+
+            // map에서 type을 조회하여 가져오면서 이미 넘겼던 new Checker 객체를 사용 가능.
+            this._checkers.get(type).check(json);
+        };
+    }
+
+    // 간이 인터페이스 (maker)
+    const Checker = class{
+        constructor(f){
+            this._f = f;
+        }
+        check(json){
+            this._f(json);
+        }
+    }
+
+    // helper
+    const M = v => {throw v + 'is mandatory';};
+    service.addChecker('member', new Checker(({name, nick, email=M('email'), id=M('id')})=>({id, nick, name, email})));
+    service.addChecker('admin', new Checker(({name, role=M('role'), email=M('email'), id=M('id')})=>({id, role, name,email})));
+    service.getData('member').then(console.log);
+    service.getData('admin').then(console.log);
+
+</script>
+</body>
+</html>
