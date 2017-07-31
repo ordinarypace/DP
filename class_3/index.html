@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DP</title>
+</head>
+<body>
+<div id="todo">
+
+</div>
+<script>
+    // model layer
+    // composite 패턴을 위한 공통 인터페이스.
+    // 2회차에 배웠던 Template method 패턴.
+    const Task = class {
+        constructor(){
+            this._list = [];
+        }
+        add(task){
+            this._list.push(task);
+        }
+        remove(task){
+            const l = this._list;
+
+            // 기능이 2개 이상일 때 중문 사용.
+            if(l.includes(task)) l.splice(l.indexOf(task), 1);
+        }
+        getResult(sort, state){
+            const l = this._list;
+
+            // 섬세한 코드 (이미 return문이 2개이기 때문에 탈줄할 수 있는 구멍도 2군데가 된다. 그러므로 빈 배열을 기본값으로 가지고 있는 result를 이용하여 제어한다.)
+            let result = [];
+
+            // 할당이 중복되어 있기 때문에 삼항연산자로 대체한다. 확실한 의미를 가지기 위해서.
+            result = state ? [l.filter(v => !v.isComplete()), l.filter(v => v.isComplete())]
+                .reduce((p, c) => p.concat(c.sort(sort)), []) : [...l].sort(sort);
+
+            // composite 패턴의 핵심은 리턴하는 타입이 동일하다.
+            return {
+                item : this._getResult(),
+                children : result.map(v => v.getResult(sort, state))
+            };
+        }
+        _getResult(){
+            throw 'must be overrided';
+        }
+    }
+    // Sub Task를 고객님이 원하셨...!!
+    // Sub Task는 Task의 소유이므로 Task 클래스에 작성.
+    const TaskItem = class extends Task{
+        static title(a, b){
+            return a.sortTitle(b);
+        }
+        static date(a, b){
+            return a.sortDate(b);
+        }
+        static register(a, b){
+            return null;
+        }
+        constructor(title){
+            super();
+            this._title = title;
+            this._date = +Date.now();
+            this._isComplete = false;
+        }
+        get date(){
+            return this._date.toString();
+        }
+        get title(){
+            return this._title;
+        }
+        _getResult(sort, state){
+            return this;
+        }
+        // 외부 노출
+        isComplete(){
+            return this._isComplete;
+        }
+        toggle(){
+            this._isComplete = !this._isComplete;
+        }
+        sortTitle(task){
+            return this._title > task._title;
+        }
+        sortDate(task){
+            return this._date > task._date;
+        }
+    };
+    // 사용하는 쪽 부터 만든다.
+    const TaskList = class extends Task {
+        constructor(title){
+            super()
+            this._title = title;
+        }
+        add(title){
+            super.add(new TaskItem(title));
+        }
+        remove(task){
+            super.remove(task);
+        }
+        // 제일 좋은 함수는 인자를 받지 않는 함수, 다음으로 좋은 함수는 인자를 1개만 받는 함수.
+        // 내부 함수는 validation 하지 않는다. 외부에서 제공.
+        _getResult(sort, state){
+            return this._title;
+        }
+        byRegister(state = false){
+            return this.getResult(TaskItem.register, state);
+        }
+        byTitle(state = false){
+            return this.getResult(TaskItem.title, state);
+        }
+        byDate(state = false){
+            return this.getResult(TaskItem.date, state);
+        }
+    };
+
+    // application layer
+    const Dr = class {
+        static el(type, ...attr){
+            const el = document.createElement(type);
+
+            for(let  i = 0; i < attr.length;){
+                const k = attr[i++], v = attr[i++];
+
+                if(typeof el[k] === 'function') el[k].apply(el, Array.isArray(v) ? v : [v]);
+                else if(k[0] === '@') el.style[k.substr(1)]  = v;
+                else el[k] = v;
+            }
+
+            return el;
+        }
+        constructor(taskList, parent){
+            this._list = taskList;
+            this._parent = parent;
+            this._sort = 'register';
+        }
+        sort(s){
+            this._sort = s;
+            this.render();
+        }
+        add(title){
+            this._list.add(title);
+            this.render();
+        }
+        remove(taskItem){
+            this._list.remove(taskItem);
+            this.render();
+        }
+        toggle(taskItem){
+            taskItem.toggle();
+            this.render();
+        }
+        render(){
+            const parent = document.querySelector(this._parent);
+            const data = this._list.getResult(this._sort, true);
+
+            parent.innerHTML = '';
+
+            // CRUD에서는 쓰기부터!
+            [
+                Dr.el('h2', 'innerHTML', data.item),
+                'register, title, date'.split(',').reduce((p, c) => {
+                    p.appendChild(Dr.el('button', 'innerHTML', c,
+                'addEventListener', ['click', e => this.sort(c)]));
+                    return p;
+                }, Dr.el('nav')),
+                Dr.el('section',
+                    'appendChild', Dr.el('input', 'type', 'text'),
+                    'appendChild', Dr.el('button', 'innerHTML', 'add task',
+                        'addEventListener', [
+                            'click', e => this.add(e.target.previousSibling.value)
+                    ])
+                ),
+                data.children.reduce((p, { item, children }) => {
+                    p.appendChild([
+                        Dr.el('h3', 'innerHTML', item.title,
+                            '@textDecoration', item.isComplete() ? 'line-through' : 'none'
+                        ),
+                        Dr.el('time', 'innerHTML', item.date, 'dateTime', item.date),
+                        Dr.el('button', 'innerHTML', item.isComplete() ? 'progress' : 'complete'),
+                        Dr.el('button', 'innerHTML', 'toggle',
+                        'addEventListener', [
+                            'click', e => this.toggle(item)
+                        ]),
+                        Dr.el('button', 'innerHTML', 'remove',
+                        'addEventListener', [
+                            'click', e => this.remove(item)
+                        ])
+                    ].reduce((p, c) => (p.appendChild(c), p), Dr.el('section')));
+                    return p;
+
+                }, Dr.el('section'))
+            ].reduce((p, c) => (p.appendChild(c), p), parent);
+        }
+    };
+
+    // 호스트 코드.
+    const todo = new Dr(new TaskList('list1'), '#todo');
+
+    todo.render();
+</script>
+</body>
+</html>
